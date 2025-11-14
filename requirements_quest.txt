@@ -29,3 +29,4 @@ agora-token-builder==1.0.0
 aiofiles==23.2.1
 redis==5.0.1
 httpx==0.25.2
+httpx>=0.24.0

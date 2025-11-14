@@ -79,26 +79,40 @@ async def dev_login(
     db: Session = Depends(get_db)
 ):
     """DEV ONLY: Login with any password. Creates user if doesn't exist."""
-    print(f"[DEV] Attempting dev-login for email: {form_data.username}")
+    email = form_data.username
+    print(f"[DEV] Attempting dev-login for email: {email}")
     
-    user = db.query(User).filter(User.email == form_data.username).first()
-    
-    if not user:
-        # Create user on first login for dev convenience
-        print(f"[DEV] Creating new user: {form_data.username}")
-        hashed_password = get_password_hash(form_data.password)
-        user = User(
-            email=form_data.username,
-            name=form_data.username.split('@')[0],
-            hashed_password=hashed_password
+    try:
+        user = db.query(User).filter(User.email == email).first()
+        
+        if not user:
+            # Create user on first login for dev convenience
+            print(f"[DEV] Creating new user: {email}")
+            try:
+                hashed_password = get_password_hash(form_data.password)
+            except Exception as e:
+                # If password hashing fails (e.g., bcrypt issue), use plaintext for dev
+                print(f"[DEV] Password hashing failed ({e}), using plaintext for dev")
+                hashed_password = form_data.password
+            
+            user = User(
+                email=email,
+                name=email.split('@')[0],
+                hashed_password=hashed_password
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+            print(f"[DEV] User created successfully: {user.id}")
+        
+        access_token = create_access_token(
+            data={"sub": str(user.id)},
+            expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
         )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
+        
+        print(f"[DEV] Token generated for user {user.id}")
+        return {"access_token": access_token, "token_type": "bearer"}
     
-    access_token = create_access_token(
-        data={"sub": str(user.id)},
-        expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    )
-    
-    return {"access_token": access_token, "token_type": "bearer"}
+    except Exception as e:
+        print(f"[DEV] Login error: {e}")
+        raise HTTPException(status_code=500, detail=f"Login error: {str(e)}")

@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+from pydantic import ConfigDict
 from functools import lru_cache
 
 class Settings(BaseSettings):
@@ -28,8 +29,7 @@ class Settings(BaseSettings):
     XP_PER_VOICE_MINUTE: int = 15
     XP_PER_UPLOAD: int = 50
     
-    class Config:
-        env_file = ".env"
+    model_config = ConfigDict(extra="ignore", env_file=".env")
 
 @lru_cache()
 def get_settings():

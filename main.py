@@ -37,6 +37,7 @@ app.include_router(upload.router, prefix="/api", tags=["Upload"])
 app.include_router(quiz.router, prefix="/api", tags=["Quiz"])
 app.include_router(language.router, prefix="/api/language", tags=["Language"])
 app.include_router(progress.router, prefix="/api", tags=["Progress"])
+# Note: Agora AI routes are handled via existing `chat` and `language` routers
 
 # Mount static files
 app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
