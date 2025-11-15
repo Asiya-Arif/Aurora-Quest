@@ -2237,5 +2237,347 @@
 
     
     <script src="app.js"></script>
+
+    <script>
+        // ==================== API CONFIGURATION ====================
+        const API_URL = 'https://aurora-quest-git-main-asiya-arifs-projects.vercel.app';
+
+        // ==================== UTILITY FUNCTIONS ====================
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${type === 'success' ? 'var(--pastel-mint)' : 'var(--pastel-pink)'};
+                color: var(--text-primary);
+                padding: 15px 25px;
+                border-radius: 12px;
+                box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+                z-index: 10000;
+                font-family: 'Quicksand', sans-serif;
+                font-weight: 600;
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            setTimeout(() => notification.remove(), 3000);
+        }
+
+        // ==================== UPLOAD NOTES ====================
+        async function uploadNotes(fileInput) {
+            const file = fileInput.files[0];
+            if (!file) {
+                showNotification('Please select a file first!', 'error');
+                return;
+            }
+
+            showNotification('Uploading notes... ⏳', 'info');
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch(`${API_URL}/upload-notes`, {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                showNotification(`✨ Success! Uploaded ${data.filename}`);
+                updateDashboard();
+            } catch (error) {
+                console.error('Upload error:', error);
+                showNotification('Failed to upload notes 😢', 'error');
+            }
+        }
+
+        // ==================== GENERATE QUIZ ====================
+        async function generateQuiz(subject, numQuestions = 5) {
+            showNotification('Generating quiz... 🎯', 'info');
+
+            try {
+                const response = await fetch(`${API_URL}/generate-quiz`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        subject: subject || 'General',
+                        num_questions: numQuestions
+                    })
+                });
+                const data = await response.json();
+
+                if (data.error) {
+                    showNotification(data.error, 'error');
+                    return;
+                }
+
+                displayQuiz(data.quiz);
+                showNotification('Quiz ready! 🎉');
+            } catch (error) {
+                console.error('Quiz error:', error);
+                showNotification('Failed to generate quiz 😢', 'error');
+            }
+        }
+
+        function displayQuiz(quizText) {
+            const quizContainer = document.createElement('div');
+            quizContainer.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: white;
+                padding: 30px;
+                border-radius: 20px;
+                max-width: 600px;
+                max-height: 80vh;
+                overflow-y: auto;
+                box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+                z-index: 9999;
+            `;
+
+            quizContainer.innerHTML = `
+                <h2 style="color: var(--text-pink); margin-bottom: 20px;">✨ Your Quiz ✨</h2>
+                <pre style="white-space: pre-wrap; font-family: 'Quicksand', sans-serif; line-height: 1.8;">${quizText}</pre>
+                <button onclick="this.parentElement.remove()" style="
+                    margin-top: 20px;
+                    padding: 10px 30px;
+                    background: var(--pastel-pink);
+                    border: none;
+                    border-radius: 12px;
+                    cursor: pointer;
+                    font-family: 'Quicksand', sans-serif;
+                    font-weight: 600;
+                ">Close</button>
+            `;
+
+            document.body.appendChild(quizContainer);
+        }
+
+        // ==================== CHAT WITH AI ====================
+        let currentSubject = 'General';
+
+        async function chatWithAI(question, subject) {
+            if (!question || question.trim() === '') {
+                showNotification('Please ask a question!', 'error');
+                return;
+            }
+
+            showNotification('Thinking... 🤔', 'info');
+
+            try {
+                const response = await fetch(`${API_URL}/chat`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        user_question: question,
+                        subject: subject || currentSubject
+                    })
+                });
+                const data = await response.json();
+                displayChatResponse(question, data.response);
+            } catch (error) {
+                console.error('Chat error:', error);
+                showNotification('Failed to get AI response 😢', 'error');
+            }
+        }
+
+        function displayChatResponse(question, response) {
+            const chatContainer = document.getElementById('chat-messages') || createChatContainer();
+
+            const messageDiv = document.createElement('div');
+            messageDiv.style.cssText = 'margin: 15px 0;';
+            messageDiv.innerHTML = `
+                <div style="background: var(--pastel-blue); padding: 12px; border-radius: 12px; margin-bottom: 8px;">
+                    <strong>You:</strong> ${question}
+                </div>
+                <div style="background: var(--pastel-mint); padding: 12px; border-radius: 12px;">
+                    <strong>AI Tutor:</strong> ${response}
+                </div>
+            `;
+
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function createChatContainer() {
+            const container = document.createElement('div');
+            container.id = 'chat-messages';
+            container.style.cssText = `
+                position: fixed;
+                bottom: 80px;
+                right: 20px;
+                width: 400px;
+                height: 500px;
+                background: white;
+                border-radius: 20px;
+                padding: 20px;
+                box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+                overflow-y: auto;
+                z-index: 9999;
+            `;
+            document.body.appendChild(container);
+            return container;
+        }
+
+        // ==================== LANGUAGE TUTOR ====================
+        async function startLanguageTutor(language) {
+            const languages = {
+                'Spanish': 'es-ES',
+                'French': 'fr-FR',
+                'Japanese': 'ja-JP'
+            };
+
+            if (!('webkitSpeechRecognition' in window)) {
+                showNotification('Speech recognition not supported 😢', 'error');
+                return;
+            }
+
+            showNotification(`Starting ${language} tutor... 🎙️`, 'info');
+
+            const recognition = new webkitSpeechRecognition();
+            recognition.lang = languages[language] || 'en-US';
+            recognition.continuous = false;
+
+            recognition.onresult = async (event) => {
+                const userSpeech = event.results[0][0].transcript;
+                showNotification(`You said: "${userSpeech}"`, 'info');
+
+                try {
+                    const response = await fetch(`${API_URL}/language-tutor`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            language: language,
+                            level: 'beginner',
+                            user_input: userSpeech
+                        })
+                    });
+                    const data = await response.json();
+                    speakResponse(data.tutor_response, languages[language]);
+                    showNotification('Tutor responded! 🎉');
+                } catch (error) {
+                    console.error('Tutor error:', error);
+                    showNotification('Failed to connect to tutor 😢', 'error');
+                }
+            };
+
+            recognition.onerror = (event) => {
+                showNotification('Speech recognition error', 'error');
+            };
+
+            recognition.start();
+        }
+
+        function speakResponse(text, lang = 'en-US') {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = lang;
+            utterance.rate = 0.9;
+            speechSynthesis.speak(utterance);
+        }
+
+        // ==================== GENERATE FLASHCARDS ====================
+        async function generateFlashcards(subject, numCards = 10) {
+            showNotification('Generating flashcards... 🃏', 'info');
+
+            try {
+                const response = await fetch(`${API_URL}/generate-flashcards?subject=${subject || 'General'}&num_cards=${numCards}`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+
+                if (data.error) {
+                    showNotification(data.error, 'error');
+                    return;
+                }
+
+                displayFlashcards(data.flashcards);
+                showNotification('Flashcards ready! 🎉');
+            } catch (error) {
+                console.error('Flashcards error:', error);
+                showNotification('Failed to generate flashcards 😢', 'error');
+            }
+        }
+
+        function displayFlashcards(flashcardsText) {
+            const container = document.createElement('div');
+            container.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: white;
+                padding: 30px;
+                border-radius: 20px;
+                max-width: 600px;
+                max-height: 80vh;
+                overflow-y: auto;
+                box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+                z-index: 9999;
+            `;
+
+            container.innerHTML = `
+                <h2 style="color: var(--text-pink); margin-bottom: 20px;">🃏 Your Flashcards 🃏</h2>
+                <pre style="white-space: pre-wrap; font-family: 'Quicksand', sans-serif; line-height: 1.8;">${flashcardsText}</pre>
+                <button onclick="this.parentElement.remove()" style="
+                    margin-top: 20px;
+                    padding: 10px 30px;
+                    background: var(--pastel-mint);
+                    border: none;
+                    border-radius: 12px;
+                    cursor: pointer;
+                    font-family: 'Quicksand', sans-serif;
+                    font-weight: 600;
+                ">Close</button>
+            `;
+
+            document.body.appendChild(container);
+        }
+
+        // ==================== PERFORMANCE DASHBOARD ====================
+        async function updateDashboard() {
+            try {
+                const response = await fetch(`${API_URL}/performance-dashboard`);
+                const data = await response.json();
+
+                // Update UI elements if they exist
+                const xpElement = document.querySelector('.stat-value');
+                if (xpElement) xpElement.textContent = data.total_xp || 0;
+
+                console.log('Dashboard data:', data);
+            } catch (error) {
+                console.error('Dashboard error:', error);
+            }
+        }
+
+        // ==================== SUBMIT QUIZ ====================
+        async function submitQuiz(score, total, subject) {
+            try {
+                const response = await fetch(`${API_URL}/submit-quiz?score=${score}&total=${total}&subject=${subject}`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                showNotification(`${data.message} XP: +${data.xp_earned} 🎉`);
+                updateDashboard();
+            } catch (error) {
+                console.error('Submit error:', error);
+            }
+        }
+
+        // ==================== EVENT LISTENERS ====================
+        document.addEventListener('DOMContentLoaded', function() {
+            // Update dashboard on load
+            updateDashboard();
+
+            // Setup file upload if input exists
+            const uploadInput = document.getElementById('notes-upload');
+            if (uploadInput) {
+                uploadInput.addEventListener('change', function() {
+                    uploadNotes(this);
+                });
+            }
+
+            console.log('Aurora Quest API connected! 🌈✨');
+        });
+    </script>
+
 </body>
 </html>
