@@ -1,0 +1,59 @@
+// Upload Notes
+async function uploadNotes(file) {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await fetch('/upload-notes', {
+        method: 'POST',
+        body: formData
+    });
+    const data = await response.json();
+    console.log(data);
+}
+
+// Generate Quiz
+async function generateQuiz(subject) {
+    const response = await fetch('/generate-quiz', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({subject: subject, num_questions: 5})
+    });
+    const quiz = await response.json();
+    displayQuiz(quiz);
+}
+
+// Chat with AI
+async function chatWithAI(question, subject) {
+    const response = await fetch('/chat', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({user_question: question, subject: subject})
+    });
+    const data = await response.json();
+    displayChatResponse(data.response);
+}
+
+// Language Tutor (with browser speech)
+const recognition = new webkitSpeechRecognition();
+recognition.lang = 'es-ES'; // Spanish
+
+recognition.onresult = async (event) => {
+    const userSpeech = event.results[0][0].transcript;
+    const response = await fetch('/language-tutor', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            language: 'Spanish',
+            level: 'beginner',
+            user_input: userSpeech
+        })
+    });
+    const tutorResponse = await response.json();
+    speakResponse(tutorResponse.tutor_response);
+};
+
+function speakResponse(text) {
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'es-ES';
+    speechSynthesis.speak(utterance);
+}
