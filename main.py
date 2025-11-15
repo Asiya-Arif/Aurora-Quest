@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse
 import os
 
 from database import init_db
-from routes import auth, chat, upload, quiz, language, progress
+from routes import auth, chat, upload, quiz, language, progress, flashcards
 from config import settings
 
 # Create upload directory
@@ -35,6 +35,7 @@ app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(chat.router, prefix="/api", tags=["Chat"])
 app.include_router(upload.router, prefix="/api", tags=["Upload"])
 app.include_router(quiz.router, prefix="/api", tags=["Quiz"])
+app.include_router(flashcards.router, prefix="/api", tags=["Flashcards"])
 app.include_router(language.router, prefix="/api/language", tags=["Language"])
 app.include_router(progress.router, prefix="/api", tags=["Progress"])
 # Note: Agora AI routes are handled via existing `chat` and `language` routers
