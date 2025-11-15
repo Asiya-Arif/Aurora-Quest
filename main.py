@@ -17,8 +17,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ONLY use Gemini - no Groq to avoid errors
 genai.configure(api_key=os.getenv("GEMINI_API_KEY", ""))
+model = genai.GenerativeModel('gemini-1.5-flash')
 
+# Pydantic models
 class ChatRequest(BaseModel):
     user_question: str
     subject: str
@@ -32,177 +35,93 @@ class LanguageRequest(BaseModel):
     level: str
     user_input: str
 
+# Storage
 notes_storage: Dict[str, str] = {}
 quiz_history: List[dict] = []
-user_stats: Dict[str, int] = {"total_xp": 0, "quizzes_taken": 0, "accuracy": 0}
-
-_groq_client = None
-
-def get_groq_client():
-    global _groq_client
-    if _groq_client is None:
-        try:
-            from groq import Groq
-            _groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
-        except Exception as e:
-            print(f"Groq init failed: {e}")
-    return _groq_client
+user_stats = {"total_xp": 0, "quizzes_taken": 0, "accuracy": 0}
 
 def extract_pdf_text(pdf_bytes: bytes) -> str:
-    try:
-        pdf_file = io.BytesIO(pdf_bytes)
-        reader = PyPDF2.PdfReader(pdf_file)
-        text = ""
-        for page in reader.pages:
-            text += page.extract_text()
-        return text
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"PDF extraction failed: {str(e)}")
+    pdf_file = io.BytesIO(pdf_bytes)
+    reader = PyPDF2.PdfReader(pdf_file)
+    text = ""
+    for page in reader.pages:
+        text += page.extract_text()
+    return text
 
-def get_relevant_context(subject: str, query: str = "") -> str:
-    context_parts = []
+def get_context(subject: str, query: str = "") -> str:
+    parts = []
     for filename, content in notes_storage.items():
         if subject.lower() in filename.lower() or subject.lower() in content.lower():
-            if query:
-                paragraphs = content.split('\n\n')
-                query_words = set(query.lower().split())
-                for para in paragraphs:
-                    para_words = set(para.lower().split())
-                    if len(query_words & para_words) >= 2:
-                        context_parts.append(para)
-            else:
-                context_parts.append(content)
-    return "\n\n".join(context_parts[:5]) if context_parts else "No notes found for this subject."
+            parts.append(content)
+    return "\n\n".join(parts[:3]) if parts else "No notes found"
 
 @app.get("/")
 async def root():
-    return {"message": "Aurora Quest API - Running! 🌈✨", "status": "healthy"}
+    return {"message": "Aurora Quest API ✨", "status": "healthy", "version": "2.0"}
 
 @app.get("/health")
-async def health_check():
-    return {"status": "healthy", "notes": len(notes_storage)}
+async def health():
+    return {"status": "ok", "notes": len(notes_storage)}
 
 @app.post("/upload-notes")
-async def upload_notes(file: UploadFile = File(...)):
-    try:
-        content = await file.read()
-        if file.filename.endswith('.pdf'):
-            text = extract_pdf_text(content)
-        else:
-            text = content.decode('utf-8')
-        notes_storage[file.filename] = text
-        return {"message": "Success", "filename": file.filename, "characters": len(text)}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+async def upload(file: UploadFile = File(...)):
+    content = await file.read()
+    text = extract_pdf_text(content) if file.filename.endswith('.pdf') else content.decode('utf-8')
+    notes_storage[file.filename] = text
+    return {"message": "Uploaded", "filename": file.filename, "chars": len(text)}
 
 @app.post("/generate-quiz")
-async def generate_quiz(request: QuizRequest):
-    try:
-        context = get_relevant_context(request.subject)
-        if context == "No notes found for this subject.":
-            return {"error": "Please upload notes first"}
+async def quiz(request: QuizRequest):
+    context = get_context(request.subject)
+    if context == "No notes found":
+        return {"error": "Upload notes first"}
 
-        prompt = f"""Generate {request.num_questions} quiz questions from: {context[:3000]}
-
-Format:
-Q1: [question]
-A) [option A]
-B) [option B]
-C) [option C]
-D) [option D]
-Correct: [A/B/C/D]
-Explanation: [why]
-XP: [10-50]"""
-
-        response = genai.GenerativeModel('gemini-1.5-flash').generate_content(prompt)
-        return {"quiz": response.text, "subject": request.subject}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    prompt = f"Create {request.num_questions} quiz questions from: {context[:2000]}"
+    response = model.generate_content(prompt)
+    return {"quiz": response.text, "subject": request.subject}
 
 @app.post("/chat")
-async def chat_with_notes(request: ChatRequest):
-    try:
-        context = get_relevant_context(request.subject, request.user_question)
-        groq = get_groq_client()
-
-        if not groq:
-            prompt = f"Context: {context[:2000]}\n\nQ: {request.user_question}"
-            response = genai.GenerativeModel('gemini-1.5-flash').generate_content(prompt)
-            return {"response": response.text, "provider": "gemini"}
-
-        chat = groq.chat.completions.create(
-            messages=[
-                {"role": "system", "content": f"Context: {context[:2000]}"},
-                {"role": "user", "content": request.user_question}
-            ],
-            model="llama-3.3-70b-versatile",
-            temperature=0.7,
-            max_tokens=500
-        )
-        return {"response": chat.choices[0].message.content, "provider": "groq"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+async def chat(request: ChatRequest):
+    context = get_context(request.subject, request.user_question)
+    prompt = f"Context: {context[:2000]}\n\nQuestion: {request.user_question}\n\nAnswer:"
+    response = model.generate_content(prompt)
+    return {"response": response.text, "subject": request.subject}
 
 @app.post("/language-tutor")
-async def language_tutor(request: LanguageRequest):
-    try:
-        groq = get_groq_client()
-        if not groq:
-            prompt = f"You are a {request.language} tutor. Student: {request.user_input}"
-            response = genai.GenerativeModel('gemini-1.5-flash').generate_content(prompt)
-            return {"tutor_response": response.text, "provider": "gemini"}
-
-        chat = groq.chat.completions.create(
-            messages=[
-                {"role": "system", "content": f"You are a {request.language} tutor at {request.level} level."},
-                {"role": "user", "content": request.user_input}
-            ],
-            model="llama-3.3-70b-versatile",
-            temperature=0.8,
-            max_tokens=300
-        )
-        return {"tutor_response": chat.choices[0].message.content, "provider": "groq"}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+async def tutor(request: LanguageRequest):
+    prompt = f"You are a {request.language} tutor. Student said: {request.user_input}. Give feedback."
+    response = model.generate_content(prompt)
+    return {"tutor_response": response.text, "language": request.language}
 
 @app.post("/generate-flashcards")
-async def generate_flashcards(subject: str, num_cards: int = 10):
-    try:
-        context = get_relevant_context(subject)
-        if context == "No notes found for this subject.":
-            return {"error": "Please upload notes first"}
+async def flashcards(subject: str, num_cards: int = 10):
+    context = get_context(subject)
+    if context == "No notes found":
+        return {"error": "Upload notes first"}
 
-        prompt = f"Create {num_cards} flashcards from: {context[:3000]}"
-        response = genai.GenerativeModel('gemini-1.5-flash').generate_content(prompt)
-        return {"flashcards": response.text, "subject": subject}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    prompt = f"Create {num_cards} flashcards from: {context[:2000]}"
+    response = model.generate_content(prompt)
+    return {"flashcards": response.text, "subject": subject}
 
 @app.get("/performance-dashboard")
-async def get_performance():
+async def dashboard():
     return {
-        "total_xp": user_stats.get("total_xp", 0),
-        "quizzes_taken": user_stats.get("quizzes_taken", 0),
-        "accuracy": user_stats.get("accuracy", 0),
+        "total_xp": user_stats["total_xp"],
+        "quizzes_taken": user_stats["quizzes_taken"],
+        "accuracy": user_stats["accuracy"],
         "total_notes": len(notes_storage)
     }
 
 @app.get("/history")
-async def get_history():
-    return {"quiz_history": quiz_history[-20:], "total": len(quiz_history)}
+async def history():
+    return {"quiz_history": quiz_history[-20:]}
 
 @app.post("/submit-quiz")
-async def submit_quiz(score: int, total: int, subject: str):
-    try:
-        accuracy = int((score / total) * 100) if total > 0 else 0
-        xp_earned = score * 10
-        quiz_history.append({"subject": subject, "score": score, "total": total, "xp": xp_earned})
-        user_stats["total_xp"] += xp_earned
-        user_stats["quizzes_taken"] += 1
-        if quiz_history:
-            user_stats["accuracy"] = int(sum([q.get("accuracy", 0) for q in quiz_history]) / len(quiz_history))
-        return {"message": "Submitted!", "xp_earned": xp_earned, "total_xp": user_stats["total_xp"]}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+async def submit(score: int, total: int, subject: str):
+    xp = score * 10
+    quiz_history.append({"subject": subject, "score": score, "total": total, "xp": xp})
+    user_stats["total_xp"] += xp
+    user_stats["quizzes_taken"] += 1
+    return {"message": "Submitted", "xp_earned": xp, "total_xp": user_stats["total_xp"]}
 
 handler = app
