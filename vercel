@@ -1,22 +1,8 @@
 {
   "version": 2,
-  "builds": [
-    {
-      "src": "api/main.py",
-      "use": "@vercel/python"
-    }
-  ],
+  "builds": [{"src": "api/main.py", "use": "@vercel/python"}],
   "routes": [
-    {
-      "src": "/api/(.*)",
-      "dest": "api/main.py"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
-  ],
-  "env": {
-    "FORCE_REBUILD": "true"
-  }
+    {"src": "/api/(.*)", "dest": "api/main.py"},
+    {"src": "/(.*)", "dest": "/index.html"}
+  ]
 }
