@@ -1,11 +1,11 @@
 fastapi
 uvicorn
+python-multipart
 langchain
 langchain-google-genai
 chromadb
 PyPDF2
-python-multipart
 google-generativeai
 groq
-python-jose[cryptography]
-passlib[bcrypt]
+pydantic
+
