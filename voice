@@ -1,0 +1,41 @@
+"""
+Study Plan Database Models
+"""
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Boolean, Text, Date
+from sqlalchemy.orm import relationship
+from datetime import datetime
+from database import Base
+
+
+class StudyPlan(Base):
+    __tablename__ = "study_plans"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"))
+    title = Column(String, nullable=False)
+    subject = Column(String)
+    exam_date = Column(Date, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    tasks = relationship("StudyTask", back_populates="study_plan", cascade="all, delete-orphan")
+
+
+class StudyTask(Base):
+    __tablename__ = "study_tasks"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    study_plan_id = Column(Integer, ForeignKey("study_plans.id"))
+    title = Column(String, nullable=False)
+    description = Column(Text)
+    topic = Column(String)
+    due_date = Column(Date)
+    completed = Column(Boolean, default=False)
+    completed_at = Column(DateTime, nullable=True)
+    priority = Column(String, default="medium")  # low, medium, high
+    xp_reward = Column(Integer, default=50)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    study_plan = relationship("StudyPlan", back_populates="tasks")
