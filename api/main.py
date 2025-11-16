@@ -1,5 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 import google.generativeai as genai
 import PyPDF2
 import io
@@ -54,6 +55,11 @@ def get_context(subject: str, query: str = "") -> str:
         if subject.lower() in filename.lower() or subject.lower() in content.lower():
             parts.append(content)
     return "\n\n".join(parts[:3]) if parts else "No notes found"
+
+@app.get("/favicon.ico")
+async def favicon():
+    """Handle favicon requests to prevent 404 errors."""
+    return Response(status_code=204)  # No Content
 
 @app.get("/api/")
 async def root():
