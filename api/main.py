@@ -59,6 +59,196 @@ class LanguageRequest(BaseModel):
     level: str
     user_input: str
 
+# HTML content for the homepage (served directly to avoid file system issues)
+HTML_CONTENT = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aurora Quest ✨ - Your AI-Powered Learning Companion</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='0.9em' font-size='90'>✨</text></svg>"</link>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        nav {
+            padding: 20px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .hero {
+            text-align: center;
+            padding: 80px 0;
+            margin-bottom: 60px;
+        }
+
+        .hero h1 {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            line-height: 1.2;
+        }
+
+        .hero p {
+            font-size: 20px;
+            margin-bottom: 40px;
+            opacity: 0.9;
+        }
+
+        .btn {
+            background: white;
+            color: #667eea;
+            padding: 15px 30px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-bottom: 80px;
+        }
+
+        .feature-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .feature-card h3 {
+            font-size: 24px;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .feature-card p {
+            opacity: 0.9;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 40px 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            margin-top: 80px;
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 36px;
+            }
+
+            .hero p {
+                font-size: 18px;
+            }
+
+            .features {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <div class="container">
+            <div class="logo">
+                ✨ Aurora Quest
+            </div>
+        </div>
+    </nav>
+
+    <main class="container">
+        <section class="hero">
+            <h1>Welcome to Aurora Quest</h1>
+            <p>Your AI-powered learning companion that turns study sessions into adventures</p>
+            <a href="#start" class="btn" id="startBtn">Begin Your Journey</a>
+        </section>
+
+        <section class="features" id="features">
+            <div class="feature-card">
+                <h3>📚 Smart Learning</h3>
+                <p>AI-generated quizzes and flashcards tailored to your study materials</p>
+            </div>
+            <div class="feature-card">
+                <h3>🎯 Progress Tracking</h3>
+                <p>Earn XP, track your achievements, and watch your knowledge grow</p>
+            </div>
+            <div class="feature-card">
+                <h3>🌍 Language Learning</h3>
+                <p>Practice languages with AI-powered conversation tutors</p>
+            </div>
+        </section>
+
+        <section class="hero" id="app">
+            <h2>Welcome to Aurora Quest - Deployed Successfully! 🎉</h2>
+            <p>The app is now running on Vercel platform.</p>
+            <p>API endpoints: /api/upload-notes, /api/chat, /api/generate-quiz, etc.</p>
+        </section>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2025 Aurora Quest. Built with FastAPI and Vercel.</p>
+        </div>
+    </footer>
+
+    <script>
+        document.getElementById('startBtn').addEventListener('click', function() {
+            fetch('/api/health')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('app').innerHTML = '<h2>API Status: ' + data.message + '</h2><p>Server is healthy! 🎯</p>';
+                })
+                .catch(err => {
+                    document.getElementById('app').innerHTML = '<h2>API Error - Check Logs</h2><p>Error: ' + err.message + '</p>';
+                });
+        });
+    </script>
+</body>
+</html>
+"""
+
 # Storage
 notes_storage: Dict[str, str] = {}
 quiz_history: List[dict] = []
@@ -172,12 +362,8 @@ async def catch_all(path: str):
     if path == "favicon.ico":
         return Response(content=b"", media_type="image/x-icon")
     elif path == "index.html" or path == "":
-        # Serve the HTML page
-        html_path = "index.html"
-        if os.path.exists(html_path):
-            with open(html_path, "r", encoding="utf-8") as f:
-                content = f.read()
-            return HTMLResponse(content=content, status_code=200)
+        # Serve the HTML page directly (no filesystem access needed)
+        return HTMLResponse(content=HTML_CONTENT, status_code=200)
     # For any other path, return a 404
     raise HTTPException(status_code=404, detail="Page not found")
 
