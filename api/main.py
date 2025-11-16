@@ -130,4 +130,21 @@ async def submit(score: int, total: int, subject: str):
     user_stats["quizzes_taken"] += 1
     return {"message": "Submitted", "xp_earned": xp, "total_xp": user_stats["total_xp"]}
 
+# Catch-all route for serving static content (HTML, favicon, etc.)
+@app.get("/{path:path}")
+async def catch_all(path: str):
+    """Serve static content like favicon.ico and index.html directly from FastAPI."""
+    if path == "favicon.ico":
+        return Response(content=b"", media_type="image/x-icon")
+    elif path == "index.html" or path == "":
+        # Serve the HTML page
+        html_path = "index.html"
+        if os.path.exists(html_path):
+            with open(html_path, "r", encoding="utf-8") as f:
+                content = f.read()
+            from fastapi.responses import HTMLResponse
+            return HTMLResponse(content=content, status_code=200)
+    # For any other path, return a 404
+    raise HTTPException(status_code=404, detail="Page not found")
+
 handler = app
