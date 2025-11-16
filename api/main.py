@@ -59,7 +59,7 @@ def get_context(subject: str, query: str = "") -> str:
 @app.get("/favicon.ico")
 async def favicon():
     """Handle favicon requests to prevent 404 errors."""
-    return Response(status_code=204)  # No Content
+    return Response(content=b"", media_type="image/x-icon")
 
 @app.get("/api/")
 async def root():
