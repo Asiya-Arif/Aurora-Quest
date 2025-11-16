@@ -2276,7 +2276,7 @@
             formData.append('file', file);
 
             try {
-                const response = await fetch(`${API_URL}/upload-notes`, {
+        const response = await fetch(`${API_URL}/api/upload-notes`, {
                     method: 'POST',
                     body: formData
                 });
@@ -2294,7 +2294,7 @@
             showNotification('Generating quiz... 🎯', 'info');
 
             try {
-                const response = await fetch(`${API_URL}/generate-quiz`, {
+                const response = await fetch(`${API_URL}/api/generate-quiz`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
@@ -2364,7 +2364,7 @@
             showNotification('Thinking... 🤔', 'info');
 
             try {
-                const response = await fetch(`${API_URL}/chat`, {
+                const response = await fetch(`${API_URL}/api/chat`, {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
@@ -2442,7 +2442,7 @@
                 showNotification(`You said: "${userSpeech}"`, 'info');
 
                 try {
-                    const response = await fetch(`${API_URL}/language-tutor`, {
+                    const response = await fetch(`${API_URL}/api/language-tutor`, {
                         method: 'POST',
                         headers: {'Content-Type': 'application/json'},
                         body: JSON.stringify({
@@ -2479,7 +2479,7 @@
             showNotification('Generating flashcards... 🃏', 'info');
 
             try {
-                const response = await fetch(`${API_URL}/generate-flashcards?subject=${subject || 'General'}&num_cards=${numCards}`, {
+                const response = await fetch(`${API_URL}/api/generate-flashcards?subject=${subject || 'General'}&num_cards=${numCards}`, {
                     method: 'POST'
                 });
                 const data = await response.json();
@@ -2535,7 +2535,7 @@
         // ==================== PERFORMANCE DASHBOARD ====================
         async function updateDashboard() {
             try {
-                const response = await fetch(`${API_URL}/performance-dashboard`);
+                const response = await fetch(`${API_URL}/api/performance-dashboard`);
                 const data = await response.json();
 
                 // Update UI elements if they exist
@@ -2551,7 +2551,7 @@
         // ==================== SUBMIT QUIZ ====================
         async function submitQuiz(score, total, subject) {
             try {
-                const response = await fetch(`${API_URL}/submit-quiz?score=${score}&total=${total}&subject=${subject}`, {
+                const response = await fetch(`${API_URL}/api/submit-quiz?score=${score}&total=${total}&subject=${subject}`, {
                     method: 'POST'
                 });
                 const data = await response.json();

@@ -55,22 +55,22 @@ def get_context(subject: str, query: str = "") -> str:
             parts.append(content)
     return "\n\n".join(parts[:3]) if parts else "No notes found"
 
-@app.get("/")
+@app.get("/api/")
 async def root():
     return {"message": "Aurora Quest API ✨", "status": "healthy", "version": "2.0"}
 
-@app.get("/health")
+@app.get("/api/health")
 async def health():
     return {"status": "ok", "notes": len(notes_storage)}
 
-@app.post("/upload-notes")
+@app.post("/api/upload-notes")
 async def upload(file: UploadFile = File(...)):
     content = await file.read()
     text = extract_pdf_text(content) if file.filename.endswith('.pdf') else content.decode('utf-8')
     notes_storage[file.filename] = text
     return {"message": "Uploaded", "filename": file.filename, "chars": len(text)}
 
-@app.post("/generate-quiz")
+@app.post("/api/generate-quiz")
 async def quiz(request: QuizRequest):
     context = get_context(request.subject)
     if context == "No notes found":
@@ -80,20 +80,20 @@ async def quiz(request: QuizRequest):
     response = model.generate_content(prompt)
     return {"quiz": response.text, "subject": request.subject}
 
-@app.post("/chat")
+@app.post("/api/chat")
 async def chat(request: ChatRequest):
     context = get_context(request.subject, request.user_question)
     prompt = f"Context: {context[:2000]}\n\nQuestion: {request.user_question}\n\nAnswer:"
     response = model.generate_content(prompt)
     return {"response": response.text, "subject": request.subject}
 
-@app.post("/language-tutor")
+@app.post("/api/language-tutor")
 async def tutor(request: LanguageRequest):
     prompt = f"You are a {request.language} tutor. Student said: {request.user_input}. Give feedback."
     response = model.generate_content(prompt)
     return {"tutor_response": response.text, "language": request.language}
 
-@app.post("/generate-flashcards")
+@app.post("/api/generate-flashcards")
 async def flashcards(subject: str, num_cards: int = 10):
     context = get_context(subject)
     if context == "No notes found":
@@ -103,7 +103,7 @@ async def flashcards(subject: str, num_cards: int = 10):
     response = model.generate_content(prompt)
     return {"flashcards": response.text, "subject": subject}
 
-@app.get("/performance-dashboard")
+@app.get("/api/performance-dashboard")
 async def dashboard():
     return {
         "total_xp": user_stats["total_xp"],
@@ -112,11 +112,11 @@ async def dashboard():
         "total_notes": len(notes_storage)
     }
 
-@app.get("/history")
+@app.get("/api/history")
 async def history():
     return {"quiz_history": quiz_history[-20:]}
 
-@app.post("/submit-quiz")
+@app.post("/api/submit-quiz")
 async def submit(score: int, total: int, subject: str):
     xp = score * 10
     quiz_history.append({"subject": subject, "score": score, "total": total, "xp": xp})
