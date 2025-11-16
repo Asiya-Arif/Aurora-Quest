@@ -1,6 +1,6 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import Response, HTMLResponse
 import google.generativeai as genai
 import PyPDF2
 import io
@@ -19,8 +19,13 @@ app.add_middleware(
 )
 
 # ONLY use Gemini - no Groq to avoid errors
-genai.configure(api_key=os.getenv("GEMINI_API_KEY", ""))
-model = genai.GenerativeModel('gemini-1.5-flash')
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
+if GEMINI_API_KEY and GEMINI_API_KEY != "your_new_gemini_key_here":
+    genai.configure(api_key=GEMINI_API_KEY)
+    model = genai.GenerativeModel('gemini-1.5-flash')
+else:
+    genai.configure(api_key="")  # Won't work but won't crash startup
+    model = None
 
 # Pydantic models
 class ChatRequest(BaseModel):
@@ -78,6 +83,8 @@ async def upload(file: UploadFile = File(...)):
 
 @app.post("/api/generate-quiz")
 async def quiz(request: QuizRequest):
+    if model is None:
+        return {"error": "AI model not configured"}
     context = get_context(request.subject)
     if context == "No notes found":
         return {"error": "Upload notes first"}
@@ -88,6 +95,8 @@ async def quiz(request: QuizRequest):
 
 @app.post("/api/chat")
 async def chat(request: ChatRequest):
+    if model is None:
+        return {"error": "AI model not configured"}
     context = get_context(request.subject, request.user_question)
     prompt = f"Context: {context[:2000]}\n\nQuestion: {request.user_question}\n\nAnswer:"
     response = model.generate_content(prompt)
@@ -95,12 +104,16 @@ async def chat(request: ChatRequest):
 
 @app.post("/api/language-tutor")
 async def tutor(request: LanguageRequest):
+    if model is None:
+        return {"error": "AI model not configured"}
     prompt = f"You are a {request.language} tutor. Student said: {request.user_input}. Give feedback."
     response = model.generate_content(prompt)
     return {"tutor_response": response.text, "language": request.language}
 
 @app.post("/api/generate-flashcards")
 async def flashcards(subject: str, num_cards: int = 10):
+    if model is None:
+        return {"error": "AI model not configured"}
     context = get_context(subject)
     if context == "No notes found":
         return {"error": "Upload notes first"}
@@ -142,7 +155,6 @@ async def catch_all(path: str):
         if os.path.exists(html_path):
             with open(html_path, "r", encoding="utf-8") as f:
                 content = f.read()
-            from fastapi.responses import HTMLResponse
             return HTMLResponse(content=content, status_code=200)
     # For any other path, return a 404
     raise HTTPException(status_code=404, detail="Page not found")
